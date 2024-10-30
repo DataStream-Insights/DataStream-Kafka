@@ -28,7 +28,7 @@ public class KafkaConsumerConfig {
         props.put(ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG, 10000);
         return new DefaultKafkaConsumerFactory<>(props);
     }
-
+//commit
     @Bean
     public ConcurrentKafkaListenerContainerFactory<String, String> kafkaListenerContainerFactory() {
         ConcurrentKafkaListenerContainerFactory<String, String> factory =
