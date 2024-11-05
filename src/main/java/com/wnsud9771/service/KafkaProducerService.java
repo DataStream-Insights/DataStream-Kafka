@@ -27,6 +27,7 @@ public class KafkaProducerService {
     }
 	
 	public void sendToKafka() {
+		//-----------------쇼핑몰에서 보냈다고 치고 보내는 로그데이터--------------------------------
 	    kafkaTemplate.send("START_HTTP",data);
 	    kafkaTemplate.send("START_HTTP", data2);
 	    kafkaTemplate.send("START_HTTP", data3);
@@ -35,6 +36,5 @@ public class KafkaProducerService {
 	    System.out.println("메시지 전송 완료!");
 	    System.out.println(" ");
 	}
-	
 	
 }
