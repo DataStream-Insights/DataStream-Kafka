@@ -18,7 +18,7 @@ public class KafkaConsumerService {
 	 private final RestTemplate restTemplate;
 	 private static final String RECEIVE_LOG_URL = "http://localhost:8080/logs/receive";
 	 
-	 @KafkaListener(topics = "START_HTTP", groupId = "consumer_group01")
+	 @KafkaListener(topics = "START_HTTP", groupId = "startlog_group")
 	    public void consume(String message) throws IOException {
 	        System.out.printf("Consumed Message : %s%n", message);
 	        log.info(message);	        
