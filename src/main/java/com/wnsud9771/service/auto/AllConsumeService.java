@@ -10,6 +10,7 @@ import java.util.stream.Collectors;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.kafka.core.ConsumerFactory;
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -28,11 +29,13 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 @Slf4j
 public class AllConsumeService {// 프로젝트가 시작될때 기존 토픽들 모두 컨슈밍하기 latest로 안읽은 데이터부터 다 읽기 + 프로듀싱으로 적재
+	@Qualifier("stringKafkaTemplate")
 	private final KafkaTemplate<String, String> kafkaTemplate;
+	
     private final AdminClient adminClient;
     private final Map<String, ConcurrentMessageListenerContainer<String, String>> consumers = new ConcurrentHashMap<>();
     
-    private static final String SOURCE_TOPIC = "START_LOG";
+    private static final String SOURCE_TOPIC = "tpic";
     private static final String CAMPAIGN_TOPIC_PREFIX = "campaign-";
     
     

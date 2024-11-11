@@ -34,7 +34,7 @@ public class CreateCampaignTopicService {
 	private final AdminClient adminClient;
 	private final Map<String, ConcurrentMessageListenerContainer<String, String>> consumers = new ConcurrentHashMap<>();
 
-	private static final String SOURCE_TOPIC = "START_LOG";
+	private static final String SOURCE_TOPIC = "tpic";
 	private static final String CAMPAIGN_TOPIC_PREFIX = "campaign-";
 
 	// -----------------------------------( 함수들 호출 로직 )-----------------------------------------------------
