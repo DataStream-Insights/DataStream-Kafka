@@ -17,21 +17,13 @@
 //@RequiredArgsConstructor
 //public class KafkaConsumerService {
 //	
-//	 private final RestTemplate restTemplate;
-//	 private static final String RECEIVE_LOG_URL = "http://localhost:8080/logs/receive";
 //	 
-//	 @KafkaListener(topics = "${topicId}", groupId = "consumer_group01")
+//	 @KafkaListener(topics = "campaign-CPG241111045", groupId = "test-group",  containerFactory = "testKafkaListenerContainerFactory")
 //	    public void consume(String message) throws IOException {
-//	        System.out.printf("Consumed Message : %s%n", message);
-//	        log.info(message);	        
-//	        LogDTO dto = new LogDTO();
-//	        dto.setLog_data(message);
-//	        sendLogData(dto);
+//	        System.out.printf("테스트로 CPG241023748토픽 컨슈밍: {}", message);
+//	        log.info("테스트로 CPG241023748토픽 컨슈밍: {}",message);	        
+//
 //	    }
-//	 
-//	 public LogDTO sendLogData(LogDTO logDTO) {
-//		 	log.info("send dto data {} : ", logDTO.getLog_data());
-//	        return restTemplate.postForObject(RECEIVE_LOG_URL, logDTO, LogDTO.class);
-//	    }
+//
 //	 
 //}
