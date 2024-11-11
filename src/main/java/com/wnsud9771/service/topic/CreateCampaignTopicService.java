@@ -57,7 +57,7 @@ public class CreateCampaignTopicService {
 	
 
 	// -------------------------------------( 토픽 조회후 없으면 생성 )------------------------------------------
-	public void createTopicIfNotExists(String topicName) {
+	public void createTopicIfNotExists(String newtopicName) {
 		// Kafka Admin Client 설정
 		Properties props = new Properties();
 		props.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, "127.0.0.1:9092");
@@ -69,13 +69,13 @@ public class CreateCampaignTopicService {
 			Set<String> existingTopics = listTopics.names().get();
 
 			// 토픽이 존재하지 않는 경우에만 새로 생성
-			if (!existingTopics.contains(topicName)) {
-				NewTopic newTopic = new NewTopic(topicName, 1, (short) 1);
+			if (!existingTopics.contains(newtopicName)) {
+				NewTopic newTopic = new NewTopic(newtopicName, 1, (short) 1);
 				adminClient.createTopics(Collections.singleton(newTopic)).all().get();
-				log.info("Created new topic: {}", topicName);
+				log.info("Created new topic: {}", newtopicName);
 			}
 		} catch (Exception e) {
-			log.error("Error creating/checking topic {}: ", topicName, e);
+			log.error("Error creating/checking topic {}: ", newtopicName, e);
 			throw new RuntimeException("Topic creation failed", e);
 		}
 	}
