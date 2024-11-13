@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.kafka.clients.admin.AdminClient;
@@ -19,6 +20,7 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.listener.AcknowledgingMessageListener;
 import org.springframework.kafka.listener.ConcurrentMessageListenerContainer;
 import org.springframework.kafka.listener.ContainerProperties;
+import org.springframework.kafka.support.SendResult;
 import org.springframework.stereotype.Service;
 
 import jakarta.annotation.PreDestroy;
@@ -37,7 +39,8 @@ public class CreateCampaignTopicService {
 	private static final String SOURCE_TOPIC = "tpic";
 	private static final String CAMPAIGN_TOPIC_PREFIX = "campaign-";
 
-	// -----------------------------------( 함수들 호출 로직 )-----------------------------------------------------
+	// -----------------------------------( 함수들 호출 로직
+	// )-----------------------------------------------------
 	public void createTopicAndSendLog(String campaignId) {
 		String newTopicName = CAMPAIGN_TOPIC_PREFIX + campaignId;
 		// 먼저 토픽 생성
@@ -46,17 +49,15 @@ public class CreateCampaignTopicService {
 		// start_log 에서 컨슈밍으로 받은 로그를(새로생성이니 earliest로 토픽안에 전부 읽어서 적재) 그다음 바로 새로만든 토픽으로
 		// 프로듀싱해서 적재
 		setupConsumer(campaignId);
-		
+
 		log.info("새로운 토픽 생성 및 해당 토픽 컨슈밍 + 프로듀싱 성공");
-		
+
 	}
 
 	// --------------------------------------------------------------------------------------------------
-	
-	
-	
 
-	// -------------------------------------( 토픽 조회후 없으면 생성 )------------------------------------------
+	// -------------------------------------( 토픽 조회후 없으면 생성
+	// )------------------------------------------
 	public void createTopicIfNotExists(String newtopicName) {
 		// Kafka Admin Client 설정
 		Properties props = new Properties();
@@ -75,50 +76,68 @@ public class CreateCampaignTopicService {
 				log.info("Created new topic: {}", newtopicName);
 			}
 		} catch (Exception e) {
-			log.error("Error creating/checking topic {}: ", newtopicName, e);
+			log.error(" {} : 캠페인 토픽이 생성 안됨 ", newtopicName, e);
+			// 생성 안된 캠페인
+			String failcampaignId = newtopicName.substring(CAMPAIGN_TOPIC_PREFIX.length());
+
 			throw new RuntimeException("Topic creation failed", e);
 		}
 	}
 	// ----------------------------------------------------------------------------------------------------------
-	
-	
-	
-	
 
-	// ---------------------------------(컨슈머세팅 각 토픽마다 새컨슈머로 )-----------------------------------------------
+	// ---------------------------------(컨슈머세팅 각 토픽마다 새컨슈머로
+	// )-----------------------------------------------
 	private void setupConsumer(String campaignId) {
 		String targetTopic = CAMPAIGN_TOPIC_PREFIX + campaignId;
 		String groupId = "campaign-consumer-" + campaignId;
 
 		ConsumerFactory<String, String> consumerFactory = createConsumerFactory(groupId);
 		ContainerProperties containerProps = new ContainerProperties(SOURCE_TOPIC);
-		
+
+
 		containerProps.setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
+
 
 		containerProps.setMessageListener((AcknowledgingMessageListener<String, String>) (record, acknowledgment) -> {
 			try {
-				log.info("START_LOG에서 컨슈밍한 오프셋 : {},// 로그 : {} ", record.offset(),record.value() );
+				log.info("START_LOG에서 컨슈밍한 오프셋 : {}, 로그 : {} ", record.offset(), record.value());
 
-				kafkaTemplate.send(targetTopic, record.value()); //해당 토픽에 적재
-				log.info("{} 토픽으로 {} 전송 성공",targetTopic,record.value());
-				acknowledgment.acknowledge(); // 성공시 커밋
+				// 포매팅 처리
+
+				// 비동기 전송 처리
+				CompletableFuture<SendResult<String, String>> future = kafkaTemplate.send(targetTopic, record.value());
+
+				future.whenComplete((result, ex) -> {
+					if (ex == null) {
+						// 전송 성공시에만 커밋
+						acknowledgment.acknowledge();
+						log.info("{} 토픽으로 {} 전송 성공", targetTopic, record.value());
+					} else {
+						log.error("Failed to send message to topic: {}", targetTopic, ex);
+						// 실패시 커밋하지 않음 - 메시지 재전송됨
+					}
+				});
+
 			} catch (Exception e) {
-				log.error(" {} 토픽에서 오류 생김 ", targetTopic, e);
+				log.error("{} 토픽에서 오류 생김 ", targetTopic, e);
+				// 예외 발생시 커밋하지 않음 - 메시지 재전송됨
 			}
 		});
 
+		ConcurrentMessageListenerContainer<String, String> container = new ConcurrentMessageListenerContainer<>(consumerFactory, containerProps);
+		container.start();
+		consumers.put(targetTopic, container);
+
 	}
 	// ----------------------------------------------------------------------------------------------------------
-	
-	
-	
 
-	// -----------------------------------------( 컨슈머 팩토리 설정 )---------------------------------------------------
+	// -----------------------------------------( 컨슈머 팩토리 설정
+	// )---------------------------------------------------
 	private ConsumerFactory<String, String> createConsumerFactory(String groupId) {
 		Map<String, Object> props = new HashMap<>();
 		props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
 		props.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
-		props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+		props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest");
 		props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
 		props.put(ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_committed");
 		props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
@@ -126,22 +145,18 @@ public class CreateCampaignTopicService {
 		return new DefaultKafkaConsumerFactory<>(props);
 	}
 	// ---------------------------------------------------------------------------------------------------------------
-	
-	
-	
-	
-	
-	//-------------------------------------( 프로젝트 종료시 컨슈머 정리 )----------------------------------------------------
-	 @PreDestroy
-	    public void cleanup() {
-	        consumers.forEach((topic, container) -> {
-	            container.stop();
-	            log.info("Stopped consumer for topic: {}", topic);
-	        });
-	        consumers.clear();
-	    }
-	 
-	 //-------------------------------------------------------------------------------------------------------------
-	 
-	 
+
+	// -------------------------------------( 프로젝트 종료시 컨슈머 정리
+	// )----------------------------------------------------
+	@PreDestroy
+	public void cleanup() {
+		consumers.forEach((topic, container) -> {
+			container.stop();
+			log.info("Stopped consumer for topic: {}", topic);
+		});
+		consumers.clear();
+	}
+
+	// -------------------------------------------------------------------------------------------------------------
+
 }
