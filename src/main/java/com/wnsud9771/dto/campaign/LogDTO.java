@@ -1,4 +1,4 @@
-package com.wnsud9771.dto;
+package com.wnsud9771.dto.campaign;
 
 import lombok.Data;
 
