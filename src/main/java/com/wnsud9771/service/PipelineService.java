@@ -58,16 +58,18 @@ public class PipelineService {
 //									eventPublisher.publishEvent(new FilterCreatedEvent(this, campaignIdFormatIdFilterIdDTO)); //포맷 CampaignIdFormatIdFilterIdDTO
 									
 									createFilterTopicService.createTopicAndSendLog(receivedto.getPipelineId() ,campaignIddto.getCampaingId(), addformatTopicdto.getFormatId(), filterTopicdto.getFilterId());
-
+									
 								}
 							}
 						}
 					}
 				}
 				
+				//컨슈머들 모두 true 되면 pipeline status -> true
 				updatePipelineStatusService.changePipelineStatus(receivedto.getPipelineId());
-		
-			
+				
+				//토픽 다생성되면 해당 필터링 토픽에서 데이터 꺼내와서 db에 저장
+				
 		
 		
 	}
