@@ -24,6 +24,8 @@ import org.springframework.kafka.listener.ContainerProperties;
 import org.springframework.kafka.support.SendResult;
 import org.springframework.stereotype.Service;
 
+import com.wnsud9771.service.mybatis.UpdateConsumerService;
+
 import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -36,7 +38,8 @@ public class CreateCampaignTopicService {
 	private final KafkaTemplate<String, String> kafkaTemplate;
 	private final AdminClient adminClient;
 	private final Map<String, ConcurrentMessageListenerContainer<String, String>> consumers = new ConcurrentHashMap<>();
-
+	private final UpdateConsumerService updateConsumerService;
+	
 	private static final String SOURCE_TOPIC = "START_LOG";
 	private static final String CAMPAIGN_TOPIC_PREFIX = "campaign-";
 	
@@ -60,8 +63,7 @@ public class CreateCampaignTopicService {
 
 	// --------------------------------------------------------------------------------------------------
 
-	// -------------------------------------( 토픽 조회후 없으면 생성
-	// )------------------------------------------
+	// -------------------------------------( 토픽 조회후 없으면 생성 // )------------------------------------------
 	public void createTopicIfNotExists(String newtopicName) {
 		// Kafka Admin Client 설정
 		Properties props = new Properties();
@@ -106,7 +108,6 @@ public class CreateCampaignTopicService {
 			try {
 				log.info("START_LOG에서 컨슈밍한 오프셋 : {}, 로그 : {} ", record.offset(), record.value());
 
-				// 포매팅 처리
 
 				// 비동기 전송 처리
 				CompletableFuture<SendResult<String, String>> future = kafkaTemplate.send(targetTopic, record.value());
@@ -116,6 +117,12 @@ public class CreateCampaignTopicService {
 						// 전송 성공시에만 커밋
 						acknowledgment.acknowledge();
 						log.info("{} 토픽으로 {} 전송 성공", targetTopic, record.value());
+						
+						// 컨슈머 생성됬으니 해당 캠페인 id db 컨슈머 true로 변경
+						
+						updateConsumerService.updateCampaignConsumer(campaignId, true, targetTopic);
+						
+						
 					} else {
 						log.error("Failed to send message to topic: {}", targetTopic, ex);
 						// 실패시 커밋하지 않음 - 메시지 재전송됨
@@ -150,8 +157,7 @@ public class CreateCampaignTopicService {
 	}
 	// ---------------------------------------------------------------------------------------------------------------
 
-	// -------------------------------------( 프로젝트 종료시 컨슈머 정리
-	// )----------------------------------------------------
+	// -------------------------------------( 프로젝트 종료시 컨슈머 정리 // )----------------------------------------------------
 	@PreDestroy
 	public void cleanup() {
 		consumers.forEach((topic, container) -> {
