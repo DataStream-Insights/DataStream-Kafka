@@ -54,8 +54,8 @@ public class CreateFilterTopicService {
 	private static final String CAMPAIGN_TOPIC_PREFIX = "fail-";
 
 	// -----------------------------------( 함수들 호출 로직 )-----------------------------------------------------
-	public boolean createTopicAndSendLog(String campaignId, String filterId,String formatId) {
-		String newTopicName = formatId + filterId;
+	public boolean createTopicAndSendLog(String pipelineId, String campaignId, String filterId,String formatId) {
+		String newTopicName =pipelineId + formatId + filterId;
 		//String failfilterTopicNmae =  CAMPAIGN_TOPIC_PREFIX + formatId + filterId;
 		try {
 			// 먼저 토픽 생성
@@ -71,7 +71,7 @@ public class CreateFilterTopicService {
 			
 			
 			log.info("{}: 새로운 포맷 토픽 생성 성공",newTopicName);
-			if(setupConsumer(campaignId, formatId, filterId)) {
+			if(setupConsumer(pipelineId,campaignId, formatId, filterId)) {
 				log.info("새로생긴 포맷 토픽 포맷팅 작업, 포맷 토픽에 프로듀싱");
 				return true;
 			}
@@ -107,10 +107,12 @@ public class CreateFilterTopicService {
 				adminClient.createTopics(Collections.singleton(newTopic)).all().get();
 				log.info("Created new topic: {}", newtopicName);
 			}else {
-				FormatIdFilterIdDTO dto = new FormatIdFilterIdDTO();
-				dto.setFilterId(filterId);
-				dto.setFormatId(formatId);
-				mybatisService.failfilterTopic(dto);
+//				FormatIdFilterIdDTO dto = new FormatIdFilterIdDTO();
+//				dto.setFilterId(filterId);
+//				dto.setFormatId(formatId);
+//				mybatisService.failfilterTopic(dto);
+				
+				log.info("{}:토픽 이미 생성되어있거나 오류로인한 미생성", newtopicName);
 			}
 			
 			return true;
@@ -127,10 +129,10 @@ public class CreateFilterTopicService {
 	
 
 	// ---------------------------------(컨슈머세팅 각 토픽마다 새컨슈머로 )-----------------------------------------------
-	private boolean setupConsumer(String campaignId, String formatId, String filterId) {
-		String consumeTopic = campaignId + formatId; //포맷-> 필터 컨슈밍할 토픽
-		String targetTopic = formatId + filterId; // 필터링후 보낼 토픽(필터토픽)
-		String groupId = formatId + filterId; // 컨슈밍 그룹
+	private boolean setupConsumer(String pipelineId, String campaignId, String formatId, String filterId) {
+		String consumeTopic =pipelineId + campaignId + formatId; //포맷-> 필터 컨슈밍할 토픽
+		String targetTopic =pipelineId + formatId + filterId; // 필터링후 보낼 토픽(필터토픽)
+		String groupId = pipelineId + formatId + filterId; // 컨슈밍 그룹
 		
 
 		ConsumerFactory<String, String> consumerFactory = createConsumerFactory(groupId);
@@ -157,7 +159,7 @@ public class CreateFilterTopicService {
 	                    acknowledgment.acknowledge();
 	                    log.info("{} 토픽으로 {} 전송 성공", targetTopic, dto.getJsonlog());
 	                    
-	                    updateConsumerService.updateFilterConsumer(formatId, filterId, true, targetTopic);
+	                    updateConsumerService.updateFilterConsumer(pipelineId,formatId, filterId, true, targetTopic);
 	                    
 	                    
 	                } else {
@@ -203,13 +205,22 @@ public class CreateFilterTopicService {
 	
 	
 	//-------------------------------------( 프로젝트 종료시 컨슈머 정리 )----------------------------------------------------
-	 @PreDestroy
-	    public void cleanup() {
-	        consumers.forEach((topic, container) -> {
-	            container.stop();
-	            log.info("Stopped consumer for topic: {}", topic);
-	        });
-	        consumers.clear();
+	 //@PreDestroy
+	    public void cleanup(String pipelineId, String formatId, String filterId) {
+	    	String filter_topics = pipelineId + formatId + filterId;
+	    	ConcurrentMessageListenerContainer<String, String> container = consumers.remove(filter_topics);
+			if (container != null) {
+			    container.stop();
+			    updateConsumerService.stopFilterConsumer(pipelineId, formatId , filterId ,false);
+			}else {
+				log.info("해당 토픽 에대한 컨슈머가 실행되어있지 않습니다. consumer :{}", filter_topics);
+			}
+			
+//			consumers.forEach((topic, container) -> {
+//				container.stop();
+//				log.info("Stopped consumer for topic: {}", topic);
+//			});
+//			consumers.clear();
 	    }
 	 
 	 //-------------------------------------------------------------------------------------------------------------

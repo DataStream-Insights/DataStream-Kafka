@@ -50,11 +50,11 @@ public class CreateFormatTopicService {
 	private String serverport;
 
 	//private static final String SOURCE_TOPIC = "tpic";
-	private static final String CAMPAIGN_TOPIC_PREFIX = "campaign-";
+	//private static final String CAMPAIGN_TOPIC_PREFIX = "campaign-";
 
 	// -----------------------------------( 함수들 호출 로직 )-----------------------------------------------------
-	public boolean createTopicAndSendLog(String campaignId,String formatId) {
-		String newTopicName = campaignId + formatId;
+	public boolean createTopicAndSendLog(String pipelineId, String campaignId,String formatId) {
+		String newTopicName = pipelineId + campaignId + formatId;
 		try {
 			// 먼저 토픽 생성
 			if(!createTopicIfNotExists(newTopicName, campaignId, formatId)) {
@@ -63,7 +63,7 @@ public class CreateFormatTopicService {
 			}
 			
 			log.info("{}: 새로운 포맷 토픽 생성 성공",newTopicName);
-			if(setupConsumer(campaignId, formatId)) {
+			if(setupConsumer(pipelineId, campaignId, formatId)) {
 				log.info("새로생긴 포맷 토픽 포맷팅 작업, 포맷 토픽에 프로듀싱");
 				return true;
 			}
@@ -99,10 +99,11 @@ public class CreateFormatTopicService {
 				adminClient.createTopics(Collections.singleton(newTopic)).all().get();
 				log.info("Created new topic: {}", newtopicName);
 			}else {
-				CampaignIdFormatIdDTO dto = new CampaignIdFormatIdDTO();
-				dto.setCampaignId(campaignId);
-				dto.setFormatId(formatId);
-				mybatisService.failformatTopic(dto);
+//				CampaignIdFormatIdDTO dto = new CampaignIdFormatIdDTO();
+//				dto.setCampaignId(campaignId);
+//				dto.setFormatId(formatId);
+//				mybatisService.failformatTopic(dto);
+				log.info("{}:토픽 이미 생성되어있거나 오류로인한 미생성", newtopicName);
 			}
 			
 			return true;
@@ -119,10 +120,10 @@ public class CreateFormatTopicService {
 	
 
 	// ---------------------------------(컨슈머세팅 각 토픽마다 새컨슈머로 )-----------------------------------------------
-	private boolean setupConsumer(String campaignId, String formatId) {
-		String consumeTopic = CAMPAIGN_TOPIC_PREFIX + campaignId;
-		String targetTopic = campaignId+formatId;
-		String groupId = campaignId+formatId;
+	private boolean setupConsumer(String pipelineId, String campaignId, String formatId) {
+		String consumeTopic = pipelineId + campaignId;
+		String targetTopic =pipelineId + campaignId + formatId;
+		String groupId = pipelineId + campaignId + formatId;
 		List<String> paths = formatMapper.findPathsByFormatId(formatId);
 		
 		log.info("setupConsumer() paths {}",paths);
@@ -149,7 +150,7 @@ public class CreateFormatTopicService {
 	                    acknowledgment.acknowledge();
 	                    log.info("{} 토픽으로 {} 전송 성공", targetTopic, parsinglog);
 	                    
-	                    updateConsumerService.updateFormatConsumer(campaignId, formatId, true, targetTopic);
+	                    updateConsumerService.updateFormatConsumer(pipelineId, campaignId, formatId, true, targetTopic);
 	                    
 	                } else {
 	                    log.error("Failed to send message to topic: {}", targetTopic, ex);
@@ -180,7 +181,7 @@ public class CreateFormatTopicService {
 		Map<String, Object> props = new HashMap<>();
 		props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, serverport);
 		props.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
-		props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest");
+		props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
 		props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
 		props.put(ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_committed");
 		props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
@@ -194,13 +195,22 @@ public class CreateFormatTopicService {
 	
 	
 	//-------------------------------------( 프로젝트 종료시 컨슈머 정리 )----------------------------------------------------
-	 @PreDestroy
-	    public void cleanup() {
-	        consumers.forEach((topic, container) -> {
-	            container.stop();
-	            log.info("Stopped consumer for topic: {}", topic);
-	        });
-	        consumers.clear();
+	// @PreDestroy
+	    public void cleanup(String pipelineId, String campaignId, String formatId) {
+	    	String format_topics = pipelineId + campaignId + formatId;
+	    	ConcurrentMessageListenerContainer<String, String> container = consumers.remove(format_topics);
+			if (container != null) {
+			    container.stop();
+			    updateConsumerService.stopFormatConsumer(pipelineId, campaignId, formatId, false);
+			}else {
+				log.info("해당 토픽 에대한 컨슈머가 실행되어있지 않습니다. consumer :{}",format_topics);
+			}
+			
+//			consumers.forEach((topic, container) -> {
+//				container.stop();
+//				log.info("Stopped consumer for topic: {}", topic);
+//			});
+//			consumers.clear();
 	    }
 	 
 	 //-------------------------------------------------------------------------------------------------------------
