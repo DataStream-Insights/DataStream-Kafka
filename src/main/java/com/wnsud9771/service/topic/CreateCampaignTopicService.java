@@ -48,14 +48,14 @@ public class CreateCampaignTopicService {
 
 	// -----------------------------------( 함수들 호출 로직
 	// )-----------------------------------------------------
-	public void createTopicAndSendLog(String campaignId) {
-		String newTopicName = CAMPAIGN_TOPIC_PREFIX + campaignId;
+	public void createTopicAndSendLog(String pipelineId, String campaignId) {
+		String newTopicName = pipelineId + campaignId;
 		// 먼저 토픽 생성
 		createTopicIfNotExists(newTopicName);
 
 		// start_log 에서 컨슈밍으로 받은 로그를(새로생성이니 earliest로 토픽안에 전부 읽어서 적재) 그다음 바로 새로만든 토픽으로
 		// 프로듀싱해서 적재
-		setupConsumer(campaignId);
+		setupConsumer(pipelineId, campaignId);
 
 		log.info("새로운 토픽 생성 및 해당 토픽 컨슈밍 + 프로듀싱 성공");
 
@@ -82,9 +82,10 @@ public class CreateCampaignTopicService {
 				log.info("Created new topic: {}", newtopicName);
 			}
 		} catch (Exception e) {
-			log.error(" {} : 캠페인 토픽이 생성 안됨 ", newtopicName, e);
+			//log.error(" {} : 캠페인 토픽이 생성 안됨 ", newtopicName, e);
+			log.info("{}:토픽 이미 생성되어있거나 오류로인한 미생성", newtopicName);
 			// 생성 안된 캠페인
-			String failcampaignId = newtopicName.substring(CAMPAIGN_TOPIC_PREFIX.length());
+			//String failcampaignId = newtopicName.substring(CAMPAIGN_TOPIC_PREFIX.length());
 
 			throw new RuntimeException("Topic creation failed", e);
 		}
@@ -93,9 +94,9 @@ public class CreateCampaignTopicService {
 
 	// ---------------------------------(컨슈머세팅 각 토픽마다 새컨슈머로
 	// )-----------------------------------------------
-	private void setupConsumer(String campaignId) {
-		String targetTopic = CAMPAIGN_TOPIC_PREFIX + campaignId;
-		String groupId = "campaign-consumer-" + campaignId;
+	private void setupConsumer(String pipelineId, String campaignId) {
+		String targetTopic = pipelineId + campaignId;
+		String groupId = pipelineId + campaignId;
 
 		ConsumerFactory<String, String> consumerFactory = createConsumerFactory(groupId);
 		ContainerProperties containerProps = new ContainerProperties(SOURCE_TOPIC);
@@ -120,7 +121,7 @@ public class CreateCampaignTopicService {
 						
 						// 컨슈머 생성됬으니 해당 캠페인 id db 컨슈머 true로 변경
 						
-						updateConsumerService.updateCampaignConsumer(campaignId, true, targetTopic);
+						updateConsumerService.updateCampaignConsumer(pipelineId, campaignId, true, targetTopic);
 						
 						
 					} else {
@@ -148,7 +149,7 @@ public class CreateCampaignTopicService {
 		Map<String, Object> props = new HashMap<>();
 		props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, serverport);
 		props.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
-		props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest");
+		props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
 		props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
 		props.put(ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_committed");
 		props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
@@ -158,13 +159,22 @@ public class CreateCampaignTopicService {
 	// ---------------------------------------------------------------------------------------------------------------
 
 	// -------------------------------------( 프로젝트 종료시 컨슈머 정리 // )----------------------------------------------------
-	@PreDestroy
-	public void cleanup() {
-		consumers.forEach((topic, container) -> {
-			container.stop();
-			log.info("Stopped consumer for topic: {}", topic);
-		});
-		consumers.clear();
+	//@PreDestroy
+	public void cleanup(String pipelineId, String campaignId) {
+		String campaign_topics = pipelineId +campaignId;
+		ConcurrentMessageListenerContainer<String, String> container = consumers.remove(campaign_topics);
+		if (container != null) {
+		    container.stop();
+		    updateConsumerService.stopCampaignConsumer(pipelineId, campaignId, false);
+		}else {
+			log.info("해당 토픽 에대한 컨슈머가 실행되어있지 않습니다. consumer :{}", campaign_topics);
+		}
+		
+//		consumers.forEach((topic, container) -> {
+//			container.stop();
+//			log.info("Stopped consumer for topic: {}", topic);
+//		});
+//		consumers.clear();
 	}
 
 	// -------------------------------------------------------------------------------------------------------------
