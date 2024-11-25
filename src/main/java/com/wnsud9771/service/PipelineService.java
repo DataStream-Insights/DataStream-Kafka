@@ -66,8 +66,9 @@ public class PipelineService {
 				}
 				
 				//컨슈머들 모두 true 되면 pipeline status -> true
+				log.info("파이프라인 끝나기 이전 상태: {}" , receivedto.getPipelineId());
 				updatePipelineStatusService.changePipelineStatus(receivedto.getPipelineId());
-				
+				log.info("파이프라인 끝나고 난후 상태: {}" , receivedto.getPipelineId());
 				//토픽 다생성되면 해당 필터링 토픽에서 데이터 꺼내와서 db에 저장
 				
 		

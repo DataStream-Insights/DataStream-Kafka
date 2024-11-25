@@ -23,14 +23,11 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 @Slf4j
 public class FilteringService {
-	private final FilterMapper filterMapper;
-	private final ObjectMapper objectMapper = new ObjectMapper();
+    private final FilterMapper filterMapper;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
-	// ---------------------------------(최종 필터링로그)----------------------------------------
-	public JsonDTO filterSuccessOrFail(String formatLog, String filterManageId) {
-		//Map<String, Object> logEntry = objectMapper.readValue(formatLog, new TypeReference<Map<String, Object>>() {});
-		
-		Map<String, Object> logEntry;
+    public JsonDTO filterSuccessOrFail(String formatLog, String filterManageId) {
+        Map<String, Object> logEntry;
         try {
             logEntry = objectMapper.readValue(formatLog, new TypeReference<Map<String, Object>>() {});
         } catch (JsonMappingException e) {
@@ -41,108 +38,110 @@ public class FilteringService {
             return new JsonDTO();
         }
         
-        Map<String, Object> resultMap = new HashMap<>();
-        
-        //필터관리 id 넣어서 필터링목록들 조회
         List<FilterListDTO> conditions = getFilterConditions(filterManageId);
         
-        FilterListDTO firstConditionis = conditions.get(0);
-        log.info("첫번째 필터링 조건1!!!!!!!!!!!!!!!!!!!!: {}", firstConditionis);
-        
-        //첫번째 핕터링 의 andor빼고 로그랑 매칭시켜 값들 반환
         FilterListDTO firstCondition = conditions.get(0);
+        log.info("첫번째 필터링 조건: {}", firstCondition);
+        
+        // 실패한 필터 조건을 저장할 Map
+        Map<String, Map<String, Object>> failedConditions = new HashMap<>();
+        Map<String, Object> resultMap = new HashMap<>(logEntry);  // 원본 로그 전체 복사
+        
+        // 첫 번째 조건 체크
         boolean result = matchCondition(logEntry, firstCondition.getPath(), 
                                      firstCondition.getOperation(), 
                                      firstCondition.getValue());
         
-        if(result) {
-            resultMap.put(firstCondition.getPath(), logEntry.get(firstCondition.getPath()));
+        if (!result) {
+            addFailedCondition(failedConditions, firstCondition, logEntry);
         }
         
-        for(int i = 1; i < conditions.size(); i++) {
+        // 나머지 조건들 체크
+        for (int i = 1; i < conditions.size(); i++) {
             FilterListDTO condition = conditions.get(i);
-            boolean matches = matchCondition(logEntry, condition.getPath(),  // path를 key로 사용
+            boolean matches = matchCondition(logEntry, condition.getPath(),
                                           condition.getOperation(), 
                                           condition.getValue());
             
-         // 조건 만족시 해당 key-value 저장
-            if(matches) {
-                resultMap.put(condition.getPath(), logEntry.get(condition.getPath()));
+            if (!matches) {
+                addFailedCondition(failedConditions, condition, logEntry);
             }
             
-            // AND/OR 연산
             result = switch(condition.getAndOr().toLowerCase()) {
                 case "and" -> result && matches;
                 case "or" -> result || matches;
                 default -> throw new IllegalArgumentException("Invalid logical operator: " + condition.getAndOr());
             };
-            if(!result && condition.getAndOr().equalsIgnoreCase("and")) {
-                return new JsonDTO();
+            
+            if (!result && condition.getAndOr().equalsIgnoreCase("and")) {
+                return createResponse(resultMap, false, failedConditions);
             }
         }
         
-        
+        return createResponse(resultMap, result, failedConditions);
+    }
+    
+    private void addFailedCondition(Map<String, Map<String, Object>> failedConditions, 
+                                  FilterListDTO condition, 
+                                  Map<String, Object> logEntry) {
+        Map<String, Object> detail = new HashMap<>();
+        detail.put("actual", logEntry.getOrDefault(condition.getPath(), null));
+        detail.put("filter", condition.getValue());
+        failedConditions.put(condition.getPath(), detail);
+    }
+    
+    private JsonDTO createResponse(Map<String, Object> logEntry, 
+                                 boolean success, 
+                                 Map<String, Map<String, Object>> failedConditions) {
         JsonDTO jsonDTO = new JsonDTO();
-        if(result && !resultMap.isEmpty()) {
-            try {
-                jsonDTO.setJsonlog(objectMapper.writeValueAsString(resultMap));
-            } catch (JsonProcessingException e) {
-                log.error("Error converting result to JSON string: {}", e.getMessage());
-                return new JsonDTO();
+        try {
+            Map<String, Object> resultMap = new HashMap<>(logEntry);
+            resultMap.put("status", success ? "SUCCESS" : "FAIL");
+            
+            if (!success) {
+                resultMap.put("failure_details", failedConditions);
             }
+            
+            jsonDTO.setJsonlog(objectMapper.writeValueAsString(resultMap));
+        } catch (JsonProcessingException e) {
+            log.error("Error creating response: {}", e.getMessage());
+            return new JsonDTO();
         }
-        
-        
         return jsonDTO;
-        
-	}
+    }
 
-	// ------------------------------------------------------------------------------------------------------------------------
+    public List<FilterListDTO> getFilterConditions(String filterManageId) {
+        List<FilterConditionDTO> conditions = filterMapper.getFilterConditions(filterManageId);
+        return conditions.stream().map(this::convertToDto).collect(Collectors.toList());
+    }
 
-	public List<FilterListDTO> getFilterConditions(String filterManageId) {
-		List<FilterConditionDTO> conditions = filterMapper.getFilterConditions(filterManageId);
-		return conditions.stream().map(this::convertToDto).collect(Collectors.toList());
-	}
-	
+    private FilterListDTO convertToDto(FilterConditionDTO dbdto) {
+        FilterListDTO dto = new FilterListDTO();
+        dto.setAndOr(dbdto.getAndOr());
+        dto.setOperation(dbdto.getOperation());
+        dto.setPath(dbdto.getPath());
+        dto.setValue(dbdto.getValue());
+        return dto;
+    }
 
-	private FilterListDTO convertToDto(FilterConditionDTO dbdto) {
-		FilterListDTO dto = new FilterListDTO();
-
-		dto.setAndOr(dbdto.getAndOr());
-		dto.setOperation(dbdto.getOperation());
-		dto.setPath(dbdto.getPath());
-		dto.setValue(dbdto.getValue());
-		return dto;
-	}
-	
-	private boolean matchCondition(Map<String, Object> logEntry, String key, String operation, String value) {
-	       try {
-	           if(!logEntry.containsKey(key)) return false;
-	           String logValue = String.valueOf(logEntry.get(key));
-	           
-	           return switch(operation.toLowerCase()) {
-	               case "equals" -> logValue.equals(value);
-	               case "not_equals" -> !logValue.equals(value);
-	               case "greater_than" -> Double.parseDouble(logValue) > Double.parseDouble(value);
-	               case "less_than" -> Double.parseDouble(logValue) < Double.parseDouble(value);
-	               case "greater_equals" -> Double.parseDouble(logValue) >= Double.parseDouble(value);
-	               case "less_equals" -> Double.parseDouble(logValue) <= Double.parseDouble(value);
-	               default -> throw new IllegalArgumentException("Unsupported operation: " + operation);
-	           };
-	       } catch(Exception e) {
-	           log.error("Error matching condition: key={}, operation={}, value={}, error={}", 
-	                     key, operation, value, e.getMessage());
-	           return false;
-	       }
-	   }
-	
-	 // 결과를 JSON 문자열로 변환하는 메서드 (필요한 경우)
-	   public String convertResultToJson(Map<String, Object> result) {
-	       try {
-	           return objectMapper.writeValueAsString(result);
-	       } catch (Exception e) {
-	           log.error("Error converting result to JSON: {}", e.getMessage());
-	           return "{}";
-	       }
-	   }
+    private boolean matchCondition(Map<String, Object> logEntry, String key, String operation, String value) {
+        try {
+            if(!logEntry.containsKey(key)) return false;
+            String logValue = String.valueOf(logEntry.get(key));
+            
+            return switch(operation.toLowerCase()) {
+                case "equals" -> logValue.equals(value);
+                case "not_equals" -> !logValue.equals(value);
+                case "greater_than" -> Double.parseDouble(logValue) > Double.parseDouble(value);
+                case "less_than" -> Double.parseDouble(logValue) < Double.parseDouble(value);
+                case "greater_equals" -> Double.parseDouble(logValue) >= Double.parseDouble(value);
+                case "less_equals" -> Double.parseDouble(logValue) <= Double.parseDouble(value);
+                default -> throw new IllegalArgumentException("Unsupported operation: " + operation);
+            };
+        } catch(Exception e) {
+            log.error("Error matching condition: key={}, operation={}, value={}, error={}", 
+                    key, operation, value, e.getMessage());
+            return false;
+        }
+    }
 }

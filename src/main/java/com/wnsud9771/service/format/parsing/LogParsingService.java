@@ -23,7 +23,8 @@ public class LogParsingService { // jackson 라이브러리 사용
 
 	//private final TitleAndLogRepository titleAndLogRepository;
 	 private final ObjectMapper mapper = new ObjectMapper();
-
+	 
+	
 	// 초기 substring 파싱 title, startdepth, enddepth 받아서 로그 파싱
 	public List<LogItemDTO> processLogData(LogParseDTO logParseDTO) {
 		log.info("DTO.title {}", logParseDTO.getLog());

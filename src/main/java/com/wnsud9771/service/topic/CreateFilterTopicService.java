@@ -54,7 +54,7 @@ public class CreateFilterTopicService {
 	private static final String CAMPAIGN_TOPIC_PREFIX = "fail-";
 
 	// -----------------------------------( 함수들 호출 로직 )-----------------------------------------------------
-	public boolean createTopicAndSendLog(String pipelineId, String campaignId, String filterId,String formatId) {
+	public boolean createTopicAndSendLog(String pipelineId, String campaignId,String formatId, String filterId) {
 		String newTopicName =pipelineId + formatId + filterId;
 		//String failfilterTopicNmae =  CAMPAIGN_TOPIC_PREFIX + formatId + filterId;
 		try {
@@ -70,9 +70,10 @@ public class CreateFilterTopicService {
 			
 			
 			
-			log.info("{}: 새로운 포맷 토픽 생성 성공",newTopicName);
+			log.info("{}: 새로운 필터 토픽 생성 성공",newTopicName);
 			if(setupConsumer(pipelineId,campaignId, formatId, filterId)) {
-				log.info("새로생긴 포맷 토픽 포맷팅 작업, 포맷 토픽에 프로듀싱");
+				
+				log.info("새로생긴 필터 토픽 포맷팅 작업, 필터 토픽에 프로듀싱");
 				return true;
 			}
 			
