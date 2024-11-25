@@ -21,6 +21,7 @@ import lombok.extern.slf4j.Slf4j;
 public class FormatingService {//해당 포맷의 포맷팅할거 가져오고, 로그 파싱해서 다시 보내주는
 	private final FormatMapper formatMapper;
 	private final LogParsingService logParsingService;
+	private final PreLogProcessService preLogProcessService;
 	
 	public ParsedLogDTO Formatinglog(String log,String formatId) {
 		List<String> paths = formatMapper.findPathsByFormatId(formatId);
@@ -35,15 +36,20 @@ public class FormatingService {//해당 포맷의 포맷팅할거 가져오고, 
 	public ParsedLogDTO parsingLog(String logs,List<String> paths) {
 		ParsedLogDTO dto = new ParsedLogDTO();
 		List<String>path = paths;
+		String cleanedJson = preLogProcessService.preprocessJson(logs);
 		
-		log.info("받은 logs: {}", logs);
+		log.info("받은 logs: {}", cleanedJson);
 		log.info("받은 path:{} ", paths);
+		
+		 if (!path.contains("timestamp")) {
+		        path.add("timestamp");
+		    }
 		
 		 ObjectMapper mapper = new ObjectMapper();
 		 Map<String, String> resultMap = new HashMap<>();
 		
 		if(!path.isEmpty()) {
-			List<LogValueDTO> values = logParsingService.extractValuesByPaths(logs,path);
+			List<LogValueDTO> values = logParsingService.extractValuesByPaths(cleanedJson,path);
 		
 		 for (LogValueDTO valueDto : values) {
 	            resultMap.put(valueDto.getPath(), valueDto.getValue());

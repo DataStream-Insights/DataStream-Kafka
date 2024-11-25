@@ -92,8 +92,7 @@ public class CreateCampaignTopicService {
 	}
 	// ----------------------------------------------------------------------------------------------------------
 
-	// ---------------------------------(컨슈머세팅 각 토픽마다 새컨슈머로
-	// )-----------------------------------------------
+	// ---------------------------------(컨슈머세팅 각 토픽마다 새컨슈머로// )-----------------------------------------------
 	private void setupConsumer(String pipelineId, String campaignId) {
 		String targetTopic = pipelineId + campaignId;
 		String groupId = pipelineId + campaignId;
@@ -143,8 +142,7 @@ public class CreateCampaignTopicService {
 	}
 	// ----------------------------------------------------------------------------------------------------------
 
-	// -----------------------------------------( 컨슈머 팩토리 설정
-	// )---------------------------------------------------
+	// -----------------------------------------( 컨슈머 팩토리 설정// )---------------------------------------------------
 	private ConsumerFactory<String, String> createConsumerFactory(String groupId) {
 		Map<String, Object> props = new HashMap<>();
 		props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, serverport);
