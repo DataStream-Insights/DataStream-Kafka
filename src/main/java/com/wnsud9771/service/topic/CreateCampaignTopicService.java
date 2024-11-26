@@ -120,7 +120,6 @@ public class CreateCampaignTopicService {
 						
 						// 컨슈머 생성됬으니 해당 캠페인 id db 컨슈머 true로 변경
 						
-						updateConsumerService.updateCampaignConsumer(pipelineId, campaignId, true, targetTopic);
 						
 						
 					} else {
@@ -137,6 +136,10 @@ public class CreateCampaignTopicService {
 
 		ConcurrentMessageListenerContainer<String, String> container = new ConcurrentMessageListenerContainer<>(consumerFactory, containerProps);
 		container.start();
+		 if (container.isRunning()) {
+		        log.info("Container for topic {} is now running", targetTopic);
+		        updateConsumerService.updateCampaignConsumer(pipelineId, campaignId, true, targetTopic);
+		 }
 		consumers.put(targetTopic, container);
 
 	}

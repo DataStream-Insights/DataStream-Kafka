@@ -150,7 +150,6 @@ public class CreateFormatTopicService {
 	                    acknowledgment.acknowledge();
 	                    log.info("{} 토픽으로 {} 전송 성공", targetTopic, parsinglog);
 	                    
-	                    updateConsumerService.updateFormatConsumer(pipelineId, campaignId, formatId, true, targetTopic);
 	                    
 	                } else {
 	                    log.error("Failed to send message to topic: {}", targetTopic, ex);
@@ -166,6 +165,10 @@ public class CreateFormatTopicService {
 
 		ConcurrentMessageListenerContainer<String, String> container = new ConcurrentMessageListenerContainer<>(consumerFactory, containerProps);
 	    container.start();
+	    if (container.isRunning()) {
+	        log.info("Container for topic {} is now running", targetTopic);
+	        updateConsumerService.updateFormatConsumer(pipelineId, campaignId, formatId, true, targetTopic);
+	    }
 	    consumers.put(targetTopic, container);
 	    log.info("Successfully set up consumer for {} -> {}", consumeTopic, targetTopic);
 	    
