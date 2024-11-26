@@ -7,6 +7,7 @@ import com.wnsud9771.dto.campaign.CampaignIdDTO;
 import com.wnsud9771.dto.pipeline.add.AddFilterTopicDTO;
 import com.wnsud9771.dto.pipeline.add.AddFormatTopicDTO;
 import com.wnsud9771.dto.pipeline.add.AddPipelineDTO;
+import com.wnsud9771.event.FilteringEvent;
 import com.wnsud9771.service.mybatis.UpdatePipelineStatusService;
 import com.wnsud9771.service.topic.CreateCampaignTopicService;
 import com.wnsud9771.service.topic.CreateFilterTopicService;
@@ -58,7 +59,13 @@ public class PipelineService {
 //									eventPublisher.publishEvent(new FilterCreatedEvent(this, campaignIdFormatIdFilterIdDTO)); //포맷 CampaignIdFormatIdFilterIdDTO
 									
 									createFilterTopicService.createTopicAndSendLog(receivedto.getPipelineId() ,campaignIddto.getCampaingId(), addformatTopicdto.getFormatId(), filterTopicdto.getFilterId());
-									
+									String filterTopic = receivedto.getPipelineId()+addformatTopicdto.getFormatId()+filterTopicdto.getFilterId();
+									if(receivedto.getDistinctCode() == null) {
+										Long distinctCode = 0L;
+										eventPublisher.publishEvent(new FilteringEvent(this, receivedto.getPipelineId(),filterTopic, distinctCode));										
+									}else {
+										eventPublisher.publishEvent(new FilteringEvent(this, receivedto.getPipelineId(),filterTopic, receivedto.getDistinctCode()));
+									}
 								}
 							}
 						}

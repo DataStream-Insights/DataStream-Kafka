@@ -143,6 +143,12 @@ public class CreateFilterTopicService {
 		
 
 		containerProps.setMessageListener((AcknowledgingMessageListener<String, String>) (record, acknowledgment) -> {
+			 if (record.value() == null || record.value().trim().isEmpty()) {
+			        log.info("빈 메시지 수신. 처리를 건너뛰고 다음 메시지로 진행합니다.");
+			        acknowledgment.acknowledge();
+			        return;  // 현재 메시지 처리만 종료하고 리스너는 계속 실행
+			    }
+			
 	        try {
 	            
 	            // 필터팅 처리
@@ -150,7 +156,11 @@ public class CreateFilterTopicService {
 	        	
 	        	
 	            log.info("컨슈밍으로 받은 로그 ㅣ::::{}", record.value());
-	            
+	            if (dto == null || dto.getJsonlog() == null || dto.getJsonlog().trim().isEmpty()) {
+	                log.info("필터링 결과가 비어있습니다. 처리를 건너뛰고 다음 메시지로 진행합니다.");
+	                acknowledgment.acknowledge();
+	                return;  // 현재 메시지 처리만 종료하고 리스너는 계속 실행
+	            }
 	            // 비동기 전송 처리
 	            CompletableFuture<SendResult<String, String>> future = kafkaTemplate.send(targetTopic, dto.getJsonlog());
 	            
@@ -159,8 +169,6 @@ public class CreateFilterTopicService {
 	                    // 전송 성공시에만 커밋
 	                    acknowledgment.acknowledge();
 	                    log.info("{} 토픽으로 {} 전송 성공", targetTopic, dto.getJsonlog());
-	                    
-	                    updateConsumerService.updateFilterConsumer(pipelineId,formatId, filterId, true, targetTopic);
 	                    
 	                    
 	                } else {
@@ -177,6 +185,11 @@ public class CreateFilterTopicService {
 
 		ConcurrentMessageListenerContainer<String, String> container = new ConcurrentMessageListenerContainer<>(consumerFactory, containerProps);
 	    container.start();
+	    if (container.isRunning()) {
+	        log.info("Container for topic {} is now running", targetTopic);
+	        // 여기서 updateFilterConsumer를 호출할 수 있습니다.
+	        updateConsumerService.updateFilterConsumer(pipelineId,formatId, filterId, true, targetTopic);
+	    }
 	    consumers.put(targetTopic, container);
 	    log.info("Successfully set up consumer for {} -> {}", consumeTopic, targetTopic);
 	    

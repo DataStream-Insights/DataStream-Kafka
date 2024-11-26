@@ -7,6 +7,7 @@ public class AddPipelineDTO {
 	
 	private String pipelineName;
 	private String pipelineId;
+	private Long distinctCode;
 	
 	private AddCampaignTopicDTO addcampaignTopic;
 	
