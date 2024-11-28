@@ -137,10 +137,13 @@ public class FilteringSubmitService {
         
 	}
 	
+	//실패시 테이블 저장 중복제거x
 	private void filteringFailTable() {
 		
 	}
 	
+	
+	//데이트타임 바꾸는것.
 	private LocalDateTime changeKoreanTime(String timestamp) {	
 		ZonedDateTime utcDateTime = ZonedDateTime.parse(timestamp);
 		ZonedDateTime seoulDateTime = utcDateTime.withZoneSameInstant(ZoneId.of("Asia/Seoul"));
@@ -151,6 +154,7 @@ public class FilteringSubmitService {
 	//----------------------------------------
 	
 	
+	//tiemstamp찾기
 	private String findtimestamp(String filteringdata) throws JsonMappingException, JsonProcessingException{
 		JsonNode rootNode = objectMapper.readTree(filteringdata);
 		String timestampValue = rootNode.get("timestamp").asText();
