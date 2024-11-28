@@ -55,7 +55,7 @@ public interface UserMapper {
 	 
 	 @Update("UPDATE campaign_topic ct " +
 	            "JOIN pipelines p ON ct.pipelines_id = p.id " +
-	            "SET ct.consumer = #{consumer,jdbcType=BOOLEAN}, " +
+	            "SET ct.consumer = #{consumer,jdbcType=BOOLEAN} " +
 	            "WHERE p.pipeline_id = #{pipelineId} " +
 	            "AND ct.campaign_id = #{campaignId}")
 		    int updateCampaignTopicConsumer(@Param("pipelineId") String pipelineId,
@@ -65,7 +65,7 @@ public interface UserMapper {
 		@Update("UPDATE format_topic fmt " +
 	            "JOIN campaign_topic ct ON fmt.campaign_topic_id = ct.id " +
 	            "JOIN pipelines p ON ct.pipelines_id = p.id " +
-	            "SET fmt.consumer = #{consumer,jdbcType=BOOLEAN}, " +
+	            "SET fmt.consumer = #{consumer,jdbcType=BOOLEAN} " +
 	            "WHERE p.pipeline_id = #{pipelineId} " +
 	            "AND ct.campaign_id = #{campaignId} " +
 	            "AND fmt.format_id = #{formatId}")
@@ -78,7 +78,7 @@ public interface UserMapper {
 		            "JOIN format_topic fmt ON ft.format_topic_id = fmt.id " +
 		            "JOIN campaign_topic ct ON fmt.campaign_topic_id = ct.id " +
 		            "JOIN pipelines p ON ct.pipelines_id = p.id " +
-		            "SET ft.consumer = #{consumer,jdbcType=BOOLEAN}, " +
+		            "SET ft.consumer = #{consumer,jdbcType=BOOLEAN} " +
 		            "WHERE p.pipeline_id = #{pipelineId} " +
 		            "AND fmt.format_id = #{formatId} " +
 		            "AND ft.filter_id = #{filterId}")
