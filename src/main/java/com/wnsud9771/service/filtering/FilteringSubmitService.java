@@ -14,6 +14,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.wnsud9771.mapper.FilteringDataMapper;
 
 import lombok.RequiredArgsConstructor;
@@ -57,7 +58,7 @@ public class FilteringSubmitService {
 				
 				
 			}else if(isSuccessOrFail(filteringdata).equals("FAIL") ) {
-				
+				filteringFailTable( pipelineId, filteringdata);
 			}else {
 				log.info("Status not found in log data");
 			}
@@ -137,8 +138,24 @@ public class FilteringSubmitService {
         
 	}
 	
-	private void filteringFailTable() {
-		
+	//실패 테이블
+	private void filteringFailTable(String pipelineId, String filteringdata) throws JsonMappingException, JsonProcessingException{
+		JsonNode rootNode = objectMapper.readTree(filteringdata);
+
+		// 원본 데이터만 추출 status, failure빼고 원래데이터 추출.
+		ObjectNode originalData = objectMapper.createObjectNode();
+		rootNode.fields().forEachRemaining(field -> {
+		   if (!field.getKey().equals("status") && !field.getKey().equals("failure_details") && !field.getKey().equals("timestamp")) {
+		       originalData.set(field.getKey(), field.getValue());
+		   }
+		});
+
+		// failure_details 부분
+		String data = objectMapper.writeValueAsString(originalData);
+		String failReason = objectMapper.writeValueAsString(rootNode.get("failure_details"));
+
+		LocalDateTime localtime = changeKoreanTime(findtimestamp(filteringdata));
+		filteringDataMapper.insertFailFilteringData(localtime, data, failReason, pipelineId);
 	}
 	
 	private LocalDateTime changeKoreanTime(String timestamp) {	
