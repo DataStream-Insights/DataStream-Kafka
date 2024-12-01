@@ -23,6 +23,7 @@ public interface FilteringDataMapper {
 	void insertDistinctData(@Param("olppCode") Long olppCode, @Param("timestamp") LocalDateTime localtime,
 			@Param("data") String data, @Param("pipelinesId") String pipelinesId);
 
+
 	@Update("WITH ranked_data AS (" + "    SELECT id, pipelines_id, data, timestamp, "
 			+ "           ROW_NUMBER() OVER (PARTITION BY pipelines_id, data ORDER BY timestamp DESC) as rn "
 			+ "    FROM distinct_data" + ") " + "DELETE FROM distinct_data "
@@ -34,4 +35,17 @@ public interface FilteringDataMapper {
 			+ "VALUES (#{timestamp}, #{data}, #{failReason}, "
 			+ "(SELECT id FROM pipelines WHERE pipeline_id = #{pipelineId}))")
 	void insertFailFilteringData(LocalDateTime timestamp, String data, String failReason, String pipelineId);
+
+	
+	@Insert("INSERT INTO fail_filtering_data (timestamp, data, pipelines_id) "
+			+ "VALUES (#{timestamp}, #{data}, #{pipelines_id})")
+	void insertFailFilteringData(@Param("timestamp") LocalDateTime timestamp, @Param("data") String data,
+			@Param("pipelines_id") Long pipelinesId);
+
+	@Update("WITH ranked_data AS (" + "    SELECT id, pipelines_id, data, timestamp, "
+			+ "           ROW_NUMBER() OVER (PARTITION BY pipelines_id, data ORDER BY timestamp DESC) as rn "
+			+ "    FROM distinct_data" + ") " + "DELETE FROM distinct_data "
+			+ "WHERE id IN (SELECT id FROM ranked_data WHERE rn > 1)")
+	int removeDuplicates();
+
 }
