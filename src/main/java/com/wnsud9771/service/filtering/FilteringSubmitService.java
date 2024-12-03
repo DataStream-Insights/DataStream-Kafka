@@ -145,7 +145,7 @@ public class FilteringSubmitService {
 
 		// 원본 데이터만 추출 status, failure빼고 원래데이터 추출.
 		ObjectNode originalData = objectMapper.createObjectNode();
-		rootNode.fields().forEachRemaining(field -> {
+		rootNode.fields().forEachRemaining(field -> { 	
 		   if (!field.getKey().equals("status") && !field.getKey().equals("failure_details") && !field.getKey().equals("timestamp")) {
 		       originalData.set(field.getKey(), field.getValue());
 		   }
@@ -157,12 +157,7 @@ public class FilteringSubmitService {
 
 		LocalDateTime localtime = changeKoreanTime(findtimestamp(filteringdata));
 		filteringDataMapper.insertFailFilteringData(localtime, data, failReason, pipelineId);
-
-	//실패시 테이블 저장 중복제거x
-	private void filteringFailTable() {
-
 	}
-	
 	
 	//데이트타임 바꾸는것.
 	private LocalDateTime changeKoreanTime(String timestamp) {	
