@@ -40,7 +40,16 @@ public class FilteringService {
 		}
 
 		List<FilterListDTO> conditions = getFilterConditions(filterManageId);
-
+		
+		conditions = conditions.stream()
+			    .filter(condition -> logEntry.containsKey(condition.getPath()))
+			    .collect(Collectors.toList());
+		
+		if (conditions.isEmpty()) {
+            return new JsonDTO();
+        }
+		
+		
 		FilterListDTO firstCondition = conditions.get(0);
 		log.info("첫번째 필터링 조건: {}", firstCondition);
 
