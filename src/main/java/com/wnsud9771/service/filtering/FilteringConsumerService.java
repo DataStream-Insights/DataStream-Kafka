@@ -17,6 +17,7 @@ import org.springframework.kafka.listener.ContainerProperties;
 import org.springframework.stereotype.Service;
 
 import com.wnsud9771.mapper.FormatMapper;
+import com.wnsud9771.service.be.BesendService;
 import com.wnsud9771.service.format.parsing.FormatingService;
 import com.wnsud9771.service.mybatis.MybatisService;
 import com.wnsud9771.service.mybatis.UpdateConsumerService;
@@ -36,6 +37,7 @@ public class FilteringConsumerService {
 	private final MybatisService mybatisService;
 	private final UpdateConsumerService updateConsumerService;
 	private final FilteringSubmitService  filteringSubmitService;
+	private final BesendService besendService;
 	
 	@Value("${ec2port}")
 	private String serverport;
@@ -59,6 +61,7 @@ public class FilteringConsumerService {
 	            
 	            
 	            filteringSubmitService.filtersubmitsuccessorfail(pipelineId, record.value(),distinctCode);
+	            besendService.sendbeanddb(pipelineId);
 	           acknowledgment.acknowledge();
 	     
 	            
