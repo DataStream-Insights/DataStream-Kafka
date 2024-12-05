@@ -15,7 +15,9 @@ import org.springframework.kafka.listener.AcknowledgingMessageListener;
 import org.springframework.kafka.listener.ConcurrentMessageListenerContainer;
 import org.springframework.kafka.listener.ContainerProperties;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 
+import com.wnsud9771.dto.pipeline.add.AddPipelineDTO;
 import com.wnsud9771.mapper.FormatMapper;
 import com.wnsud9771.service.be.BesendService;
 import com.wnsud9771.service.format.parsing.FormatingService;
@@ -37,10 +39,14 @@ public class FilteringConsumerService {
 	private final MybatisService mybatisService;
 	private final UpdateConsumerService updateConsumerService;
 	private final FilteringSubmitService  filteringSubmitService;
+
 	private final BesendService besendService;
+
 	
 	@Value("${ec2port}")
 	private String serverport;
+	@Value("${beaddress}")
+	private String beaddress;
 
 	// ---------------------------------(컨슈머세팅 각 토픽마다 새컨슈머로 )-----------------------------------------------
 	public void setupConsumer(String pipelineId, String filterTopic,Long distinctCode) {
@@ -61,7 +67,9 @@ public class FilteringConsumerService {
 	            
 	            
 	            filteringSubmitService.filtersubmitsuccessorfail(pipelineId, record.value(),distinctCode);
+
 	            besendService.sendbeanddb(pipelineId);
+
 	           acknowledgment.acknowledge();
 	     
 	            

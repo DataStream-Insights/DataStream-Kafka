@@ -40,6 +40,7 @@ public class FilteringSubmitService {
 				
 				
 			}else if(isSuccessOrFail(filteringdata).equals("FAIL") ) {
+				failfilteringSuccessTabledistinct( pipelineId, filteringdata, distinctCode);
 				
 			}else {
 				log.info("Status not found in log data");
@@ -132,8 +133,8 @@ public class FilteringSubmitService {
         
         Long id = filteringDataMapper.findPipelineIdByPipelineId(pipelineId);
         
-        filteringDataMapper.insertFilteringData(localtime, filterdvalue, id);
-        filteringDataMapper.insertDistinctData(distinctCode, localtime, filterdvalue, pipelineId);
+        //filteringDataMapper.insertFilteringData(localtime, filterdvalue, id);
+        filteringDataMapper.insertDistinctData(distinctCode, localtime, filterdvalue, id);
         filteringDataMapper.removeDuplicates();
         
 	}
@@ -158,6 +159,35 @@ public class FilteringSubmitService {
 		LocalDateTime localtime = changeKoreanTime(findtimestamp(filteringdata));
 		filteringDataMapper.insertFailFilteringData(localtime, data, failReason, pipelineId);
 	}
+	
+	//실패테이블 중복제거
+	private void failfilteringSuccessTabledistinct(String pipelineId, String filteringdata, Long distinctCode) throws JsonMappingException, JsonProcessingException{
+		JsonNode rootNode = objectMapper.readTree(filteringdata);
+
+		// 원본 데이터만 추출 status, failure빼고 원래데이터 추출.
+		ObjectNode originalData = objectMapper.createObjectNode();
+		rootNode.fields().forEachRemaining(field -> { 	
+		   if (!field.getKey().equals("status") && !field.getKey().equals("failure_details") && !field.getKey().equals("timestamp")) {
+		       originalData.set(field.getKey(), field.getValue());
+		   }
+		});
+
+		// failure_details 부분
+		String data = objectMapper.writeValueAsString(originalData);
+		String failReason = objectMapper.writeValueAsString(rootNode.get("failure_details"));
+
+		LocalDateTime localtime = changeKoreanTime(findtimestamp(filteringdata));
+		Long id = filteringDataMapper.findPipelineIdByPipelineId(pipelineId);
+        
+        filteringDataMapper.insertFailDistinctData(distinctCode,localtime, data, id, failReason);
+
+        filteringDataMapper.removeFailFilteringDataDuplicates();
+        
+	}
+	
+	
+	
+	
 	
 	//데이트타임 바꾸는것.
 	private LocalDateTime changeKoreanTime(String timestamp) {	
