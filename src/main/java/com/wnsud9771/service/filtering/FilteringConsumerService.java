@@ -15,7 +15,9 @@ import org.springframework.kafka.listener.AcknowledgingMessageListener;
 import org.springframework.kafka.listener.ConcurrentMessageListenerContainer;
 import org.springframework.kafka.listener.ContainerProperties;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 
+import com.wnsud9771.dto.pipeline.add.AddPipelineDTO;
 import com.wnsud9771.mapper.FormatMapper;
 import com.wnsud9771.service.format.parsing.FormatingService;
 import com.wnsud9771.service.mybatis.MybatisService;
@@ -36,9 +38,12 @@ public class FilteringConsumerService {
 	private final MybatisService mybatisService;
 	private final UpdateConsumerService updateConsumerService;
 	private final FilteringSubmitService  filteringSubmitService;
+	private final RestTemplate restTemplate;
 	
 	@Value("${ec2port}")
 	private String serverport;
+	@Value("${beaddress}")
+	private String beaddress;
 
 	// ---------------------------------(컨슈머세팅 각 토픽마다 새컨슈머로 )-----------------------------------------------
 	public void setupConsumer(String pipelineId, String filterTopic,Long distinctCode) {
@@ -59,6 +64,13 @@ public class FilteringConsumerService {
 	            
 	            
 	            filteringSubmitService.filtersubmitsuccessorfail(pipelineId, record.value(),distinctCode);
+	            
+	            try {
+	    	 		restTemplate.postForObject(beaddress+"/sendkafka/getsuc", dto, AddPipelineDTO.class);	 		
+	    	 	}catch (Exception e){
+	    	 		log.info(" 전송실패");
+	    	 	}
+	            
 	           acknowledgment.acknowledge();
 	     
 	            
